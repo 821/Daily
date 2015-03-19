@@ -11,3 +11,7 @@
 ## f.py
 1. 專用於找自己網站的源文件。
 2. 討厭之處在於， GetClipboardData 返回的數據類型是 bytes 。
+
+## all.ahk
+1. 修了 Shift 和 Ctrl 。
+2. EE 自動保存。
