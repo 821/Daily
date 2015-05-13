@@ -1,3 +1,5 @@
+Environments for Python scripts: [Python 3.4.3 x64](https://www.python.org/ftp/python/3.4.3/python-3.4.3.amd64.msi), [PyQt4 x64](http://sourceforge.net/projects/pyqt/files/PyQt4/PyQt-4.11.3/PyQt4-4.11.3-gpl-Py3.4-Qt5.3.2-x64.exe), [clipboard](https://pypi.python.org/pypi/clipboard).
+
 ## Note-.pyw
 1. View notes and link the notes to text editor.
 2. Generation of HTML files is powered by [Pandoc](http://pandoc.org/).
