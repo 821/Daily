@@ -3,10 +3,13 @@ from PyQt4.QtCore import *; from PyQt4.QtGui import *; from PyQt4.QtWebKit impor
 
 # settings
 listfile = 'E:/Note-/files.txt' # format: 字體    E:/Jekyll/_Notes/IT/Fonts.md
-pandoc = '"D:/Program Files/Bulky/Pandoc/pandoc.exe"'
-te = '"D:/Program Files/A/Everedit/Everedit.exe"'
+pandoc = 'D:/Progra~1/Bulky/Pandoc/pandoc.exe'
+te = 'D:/Progra~1/A/EmEditor/EmEditor.exe'
 cssjs = 'E:/Note-/style.css'
 outfolder = 'E:/Note-/html/'
+upfolder = '/My%20Computers/lien/F:/Note-/'
+WinSCP = 'D:/Progra~1/C/WinSCP/winscp.com'
+server = 'https://usernameoremail:password@dav.example.com/'
 
 # frame
 app = QApplication(sys.argv)
@@ -43,11 +46,11 @@ def outpath(infile):
 
 # generate html
 def html(infile, informat):
-	os.system(pandoc + ' ' + infile + ' -f ' + informat + ' --self-contained -t html --highlight-style=pygments -H ' + cssjs + ' -s -o ' + outpath(infile))
+	os.system(pandoc + ' ' + infile + ' -f ' + informat + ' -t html --highlight-style=pygments -H ' + cssjs + ' -s -o ' + outpath(infile))
 def generate():
 	itempath = filedict[getcurrent()]
 	if itempath[-2:] == 'md' or itempath[-3:] == 'txt':
-		html(itempath, 'markdown_mmd')
+		html(itempath, 'markdown_github')
 	elif itempath[-7:] == 'textile':
 		html(itempath, 'textile')
 	elif itempath[-3:] == 'tex':
@@ -135,6 +138,14 @@ def editlist():
 	os.system(te + ' ' + cssjs)
 stButton.clicked.connect(editlist)
 
+# backup button
+baButton = QPushButton('Backup')
+def backup():
+	winpath = re.sub(r'\/', r'\\', filedict[getcurrent()])
+	print(WinSCP + ' /command "open ' + server + '" "put ' + winpath + ' ' + upfolder + '" "exit"')
+	os.system(WinSCP + ' /command "open ' + server + '" "put ' + winpath + ' ' + upfolder + '" "exit"')
+baButton.clicked.connect(backup)
+
 # layouts
 hlayout1 = QHBoxLayout()
 hlayout1.addWidget(listWidget)
@@ -148,6 +159,7 @@ hlayout2.addWidget(adButton)
 hlayout2.addWidget(liButton)
 hlayout2.addWidget(f5Button)
 hlayout2.addWidget(stButton)
+hlayout2.addWidget(baButton)
 
 vlayout = QVBoxLayout()
 vlayout.addLayout(hlayout1)
