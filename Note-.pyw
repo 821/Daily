@@ -1,4 +1,4 @@
-import sys,re,os
+import sys,re,os,dropbox
 from PyQt4.QtCore import *; from PyQt4.QtGui import *; from PyQt4.QtWebKit import *
 
 # settings
@@ -10,6 +10,7 @@ outfolder = 'E:/Note-/html/'
 upfolder = '/My%20Computers/lien/F:/Note-/'
 WinSCP = 'D:/Progra~1/C/WinSCP/winscp.com'
 server = 'https://usernameoremail:password@dav.example.com/'
+oauth2 = ''
 
 # frame
 app = QApplication(sys.argv)
@@ -18,7 +19,8 @@ widget.setWindowTitle('Note-')
 
 # open the list
 def initialize():
-	global filedict, namelist
+	global client, filedict, namelist
+	client = dropbox.client.DropboxClient(oauth2)
 	namelist = []
 	filedict = {}
 	f = open(listfile, 'r', encoding='utf-8')
@@ -146,6 +148,15 @@ def backup():
 	os.system(WinSCP + ' /command "open ' + server + '" "put ' + winpath + ' ' + upfolder + '" "exit"')
 baButton.clicked.connect(backup)
 
+# dropbox button
+dbButton = QPushButton('Dropbox')
+def dropbox():
+	fullpath = filedict[getcurrent()]
+	dbpath = re.search(u'/[^/]+$', fullpath)
+	f = open(fullpath, 'rb')
+	response = client.put_file(dbpath.group(), f, overwrite=True)
+dbButton.clicked.connect(dropbox)
+
 # layouts
 hlayout1 = QHBoxLayout()
 hlayout1.addWidget(listWidget)
@@ -160,6 +171,7 @@ hlayout2.addWidget(liButton)
 hlayout2.addWidget(f5Button)
 hlayout2.addWidget(stButton)
 hlayout2.addWidget(baButton)
+hlayout2.addWidget(dbButton)
 
 vlayout = QVBoxLayout()
 vlayout.addLayout(hlayout1)
