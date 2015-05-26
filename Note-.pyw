@@ -10,17 +10,16 @@ outfolder = 'E:/Note-/html/'
 upfolder = '/My%20Computers/lien/F:/Note-/'
 WinSCP = 'D:/Progra~1/C/WinSCP/winscp.com'
 server = 'https://usernameoremail:password@dav.example.com/'
-oauth2 = ''
+oauth2 = 'youroauth2'
 
-# frame
-app = QApplication(sys.argv)
-widget = QWidget()
-widget.setWindowTitle('Note-')
+# make the folders if required
+outfolderExist=os.path.isdir(outfolder)
+if outfolderExist == False:
+	os.mkdir(outfolder)
 
 # open the list
 def initialize():
 	global client, filedict, namelist
-	client = dropbox.client.DropboxClient(oauth2)
 	namelist = []
 	filedict = {}
 	f = open(listfile, 'r', encoding='utf-8')
@@ -35,16 +34,18 @@ def initialize():
 		namelist.append(name) # sequence of elements in filedict is strange
 	return namelist
 
-# make the folders
-outfolderExist=os.path.isdir(outfolder)
-if outfolderExist == False:
-	os.mkdir(outfolder)
+# generate tab
+def tab(title):
+	tabWidget.addTab(QWebView(), title)
+
+# get filename from fullpath
+def getname(fullpath):
+	reget = re.compile(u'(?<=/)[^/]+$')
+	return reget.search(fullpath).group()
 
 # generate the output path
-def outpath(infile):
-	getfilename = re.compile(u'(?<=/)[^/]+$')
-	outfile = outfolder + getfilename.search(infile).group() + '.html'
-	return outfile
+def outpath(inpath):
+	return outfolder + getname(inpath) + '.html'
 
 # generate html
 def html(infile, informat):
@@ -76,28 +77,34 @@ def loadlist():
 		listWidget.insertItem(i+1,listItem[i])
 
 # refresh list
-def refresh():
-	namelist = []
-	listWidget.clear()
-	loadlist()
-
-# viewing
-webView = QWebView()
-
-# list
-listWidget = QListWidget()
-loadlist()
 # get current text in list
 def getcurrent():
 	return listWidget.currentItem().text()
 
+# frame
+app = QApplication(sys.argv)
+widget = QWidget()
+widget.setWindowTitle('Note-')
+tabWidget = QTabWidget()
+tab('Empty')
+listWidget = QListWidget()
+loadlist()
+
 # view button
 viButton = QPushButton('View')
 def view():
-	viewfile = outpath(filedict[getcurrent()])
-	visit = open(viewfile, 'r', encoding='utf-8')
-	webView.setHtml(visit.read())
+	visit = open(outpath(filedict[getcurrent()]), 'r', encoding='utf-8')
+	tabWidget.setTabText(tabWidget.currentIndex(), getcurrent())
+	crtabwd = tabWidget.currentWidget()
+	crtabwd.setHtml(visit.read())
 viButton.clicked.connect(view)
+
+# create and view in new tab button
+ntButton = QPushButton('New Tab')
+def newtab():
+	tab('Empty')
+	view()
+ntButton.clicked.connect(newtab)
 
 # generate button
 geButton = QPushButton('Generate + View')
@@ -129,9 +136,9 @@ liButton.clicked.connect(editlist)
 
 # refresh button
 f5Button = QPushButton('Refresh List')
-def remove():
+def refresh():
 	listWidget.clear()
-#f5Button.clicked.connect(remove)
+	loadlist()
 f5Button.clicked.connect(refresh)
 
 # style button
@@ -144,13 +151,13 @@ stButton.clicked.connect(editlist)
 baButton = QPushButton('Backup')
 def backup():
 	winpath = re.sub(r'\/', r'\\', filedict[getcurrent()])
-	print(WinSCP + ' /command "open ' + server + '" "put ' + winpath + ' ' + upfolder + '" "exit"')
 	os.system(WinSCP + ' /command "open ' + server + '" "put ' + winpath + ' ' + upfolder + '" "exit"')
 baButton.clicked.connect(backup)
 
 # dropbox button
 dbButton = QPushButton('Dropbox')
 def dropbox():
+	client = dropbox.client.DropboxClient(oauth2)
 	fullpath = filedict[getcurrent()]
 	dbpath = re.search(u'/[^/]+$', fullpath)
 	f = open(fullpath, 'rb')
@@ -160,10 +167,11 @@ dbButton.clicked.connect(dropbox)
 # layouts
 hlayout1 = QHBoxLayout()
 hlayout1.addWidget(listWidget)
-hlayout1.addWidget(webView)
+hlayout1.addWidget(tabWidget)
 
 hlayout2 = QHBoxLayout()
 hlayout2.addWidget(viButton)
+hlayout2.addWidget(ntButton)
 hlayout2.addWidget(geButton)
 hlayout2.addWidget(edButton)
 hlayout2.addWidget(adButton)
