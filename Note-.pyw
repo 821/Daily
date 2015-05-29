@@ -1,5 +1,5 @@
 import sys,re,os,dropbox
-from PyQt4.QtCore import *; from PyQt4.QtGui import *; from PyQt4.QtWebKit import *
+from PyQt4.QtCore import *; from PyQt4.QtGui import *; from PyQt4.QtWebKit import QWebView
 
 # settings
 listfile = 'E:/Note-/files.txt' # format: 字體    E:/Jekyll/_Notes/IT/Fonts.md
@@ -18,8 +18,8 @@ def initialize():
 	if outfolderExist == False:
 		os.mkdir(outfolder)
 	global filedict, namelist
-	namelist = ['All Files']
-	filedict = {'All Files': listfile}
+	namelist = ['All Files', 'Style']
+	filedict = {'All Files': listfile, 'Style': cssjs}
 	f = open(listfile, 'r', encoding='utf-8')
 	filelist = f.read().splitlines()
 	f.close()
@@ -30,10 +30,6 @@ def initialize():
 		path = getpath.search(i).group()
 		filedict[name] = path
 		namelist.append(name) # sequence of elements in filedict is strange
-
-# generate tab
-def tab(title):
-	tabWidget.addTab(QWebView(), title)
 
 # get filename from fullpath
 def getname(fullpath):
@@ -60,13 +56,35 @@ def loadlist():
 def getcurrent():
 	return listWidget.currentItem().text()
 
+# generate tab
+def tab(title):
+	tabWidget.insertTab(0, QWebView(), title)
+	tabWidget.setCurrentIndex(0)
+
+# modify QTabWidget
+class TabWidget(QTabWidget):
+	def __init__(self, parent=None):
+		super (TabWidget, self).__init__(parent)
+		self.setTabsClosable(True)
+		self.tabCloseRequested.connect(self.closeTab)
+		self.setMovable(True)
+		self.addNewTab()
+	def tabRemoved(self, index):
+		self.tabBar().setVisible(self.count() > 1)
+	def closeTab(self,index):
+		self.last_closed_doc =  self.widget(index)
+		self.removeTab(index)
+	def addNewTab(self,title = "Untitled"):
+		self.insertTab(0, QWebView(), title)
+		self.setCurrentIndex(0)
+
 # start here
 app = QApplication(sys.argv)
 widget = QWidget()
 widget.setWindowTitle('Note-')
-tabWidget = QTabWidget()
-tabWidget.setTabsClosable(True)
-tab('Empty')
+icon = QIcon(widget.style().standardIcon(QStyle.SP_CommandLink)) # generate icon
+widget.setWindowIcon(icon)
+tabWidget = TabWidget()
 listWidget = QListWidget()
 loadlist()
 
@@ -82,7 +100,7 @@ viButton.clicked.connect(view)
 # create and view in new tab button
 ntButton = QPushButton('New Tab')
 def newtab():
-	tab('Empty')
+	tabWidget.addNewTab()
 	view()
 ntButton.clicked.connect(newtab)
 
@@ -130,27 +148,20 @@ def refresh():
 	loadlist()
 f5Button.clicked.connect(refresh)
 
-# style button
-stButton = QPushButton('Style')
-def editlist():
-	os.system(te + ' ' + cssjs)
-stButton.clicked.connect(editlist)
-
 # backup button
 baButton = QPushButton('Backup')
 def backup():
-	winpath = re.sub(r'\/', r'\\', filedict[getcurrent()])
-	os.system(WinSCP + ' /command "open ' + server + '" "put ' + winpath + ' ' + upfolder + '" "exit"')
+	os.system(WinSCP + ' /command "open ' + server + '" "put ' + re.sub(r'\/', r'\\', filedict[getcurrent()]) + ' ' + upfolder + '" "exit"')
 baButton.clicked.connect(backup)
 
 # dropbox button
 dbButton = QPushButton('Dropbox')
 def dropbox():
-	client = dropbox.client.DropboxClient(oauth2)
+	dbclient = dropbox.client.DropboxClient(oauth2)
 	fullpath = filedict[getcurrent()]
 	dbpath = re.search(u'/[^/]+$', fullpath)
 	f = open(fullpath, 'rb')
-	response = client.put_file(dbpath.group(), f, overwrite=True)
+	response = dbclient.put_file(dbpath.group(), f, overwrite=True)
 dbButton.clicked.connect(dropbox)
 
 # input box and find button
@@ -166,7 +177,6 @@ fiButton.clicked.connect(findnext)
 hlayout1 = QHBoxLayout()
 hlayout1.addWidget(listWidget)
 hlayout1.addWidget(tabWidget)
-
 hlayout2 = QHBoxLayout()
 hlayout2.addWidget(viButton)
 hlayout2.addWidget(ntButton)
@@ -174,12 +184,10 @@ hlayout2.addWidget(geButton)
 hlayout2.addWidget(edButton)
 hlayout2.addWidget(adButton)
 hlayout2.addWidget(f5Button)
-hlayout2.addWidget(stButton)
 hlayout2.addWidget(baButton)
 hlayout2.addWidget(dbButton)
 hlayout2.addWidget(lineEdit)
 hlayout2.addWidget(fiButton)
-
 vlayout = QVBoxLayout()
 vlayout.addLayout(hlayout1)
 vlayout.addLayout(hlayout2)
