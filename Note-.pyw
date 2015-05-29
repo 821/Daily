@@ -7,21 +7,19 @@ pandoc = 'D:/Progra~1/Bulky/Pandoc/pandoc.exe'
 te = 'D:/Progra~1/A/EmEditor/EmEditor.exe'
 cssjs = 'E:/Note-/style.css'
 outfolder = 'E:/Note-/html/'
-upfolder = '/My%20Computers/lien/F:/Note-/'
+upfolder = '/Note-/'
 WinSCP = 'D:/Progra~1/C/WinSCP/winscp.com'
 server = 'https://usernameoremail:password@dav.example.com/'
 oauth2 = 'youroauth2'
 
-# make the folders if required
-outfolderExist=os.path.isdir(outfolder)
-if outfolderExist == False:
-	os.mkdir(outfolder)
-
 # open the list
 def initialize():
-	global client, filedict, namelist
-	namelist = []
-	filedict = {}
+	outfolderExist=os.path.isdir(outfolder)
+	if outfolderExist == False:
+		os.mkdir(outfolder)
+	global filedict, namelist
+	namelist = ['All Files']
+	filedict = {'All Files': listfile}
 	f = open(listfile, 'r', encoding='utf-8')
 	filelist = f.read().splitlines()
 	f.close()
@@ -32,7 +30,6 @@ def initialize():
 		path = getpath.search(i).group()
 		filedict[name] = path
 		namelist.append(name) # sequence of elements in filedict is strange
-	return namelist
 
 # generate tab
 def tab(title):
@@ -47,23 +44,6 @@ def getname(fullpath):
 def outpath(inpath):
 	return outfolder + getname(inpath) + '.html'
 
-# generate html
-def html(infile, informat):
-	os.system(pandoc + ' ' + infile + ' -f ' + informat + ' -t html --highlight-style=pygments -H ' + cssjs + ' -s -o ' + outpath(infile))
-def generate():
-	itempath = filedict[getcurrent()]
-	if itempath[-2:] == 'md' or itempath[-3:] == 'txt':
-		html(itempath, 'markdown_github')
-	elif itempath[-7:] == 'textile':
-		html(itempath, 'textile')
-	elif itempath[-3:] == 'tex':
-		html(itempath, 'latex')
-	elif itempath[-3:] == 'rst':
-		html(itempath, 'rst')
-	else:
-		html(itempath, 'html')
-	view()
-
 # load list in listWidget
 def loadlist():
 	initialize()
@@ -76,16 +56,16 @@ def loadlist():
 	for i in range(len(listItem)):
 		listWidget.insertItem(i+1,listItem[i])
 
-# refresh list
 # get current text in list
 def getcurrent():
 	return listWidget.currentItem().text()
 
-# frame
+# start here
 app = QApplication(sys.argv)
 widget = QWidget()
 widget.setWindowTitle('Note-')
 tabWidget = QTabWidget()
+tabWidget.setTabsClosable(True)
 tab('Empty')
 listWidget = QListWidget()
 loadlist()
@@ -107,7 +87,22 @@ def newtab():
 ntButton.clicked.connect(newtab)
 
 # generate button
-geButton = QPushButton('Generate + View')
+geButton = QPushButton('Regenerate')
+def html(infile, informat):
+	os.system(pandoc + ' ' + infile + ' -f ' + informat + ' -t html --highlight-style=pygments -H ' + cssjs + ' -s -o ' + outpath(infile))
+def generate():
+	itempath = filedict[getcurrent()]
+	if itempath[-2:] == 'md' or itempath[-3:] == 'txt':
+		html(itempath, 'markdown_github')
+	elif itempath[-7:] == 'textile':
+		html(itempath, 'textile')
+	elif itempath[-3:] == 'tex':
+		html(itempath, 'latex')
+	elif itempath[-3:] == 'rst':
+		html(itempath, 'rst')
+	else:
+		html(itempath, 'html')
+	view()
 geButton.clicked.connect(generate)
 
 # edit button
@@ -127,12 +122,6 @@ def add():
 		f.close()
 		refresh()
 adButton.clicked.connect(add)
-
-# list button
-liButton = QPushButton('Edit List')
-def editlist():
-	os.system(te + ' ' + listfile)
-liButton.clicked.connect(editlist)
 
 # refresh button
 f5Button = QPushButton('Refresh List')
@@ -164,6 +153,15 @@ def dropbox():
 	response = client.put_file(dbpath.group(), f, overwrite=True)
 dbButton.clicked.connect(dropbox)
 
+# input box and find button
+lineEdit = QLineEdit()
+fiButton = QPushButton('Find Next')
+def findnext():
+	crtabwd = tabWidget.currentWidget()
+	next = crtabwd.findText(lineEdit.text())
+	crtabwd.focusNextChild(next)
+fiButton.clicked.connect(findnext)
+
 # layouts
 hlayout1 = QHBoxLayout()
 hlayout1.addWidget(listWidget)
@@ -175,11 +173,12 @@ hlayout2.addWidget(ntButton)
 hlayout2.addWidget(geButton)
 hlayout2.addWidget(edButton)
 hlayout2.addWidget(adButton)
-hlayout2.addWidget(liButton)
 hlayout2.addWidget(f5Button)
 hlayout2.addWidget(stButton)
 hlayout2.addWidget(baButton)
 hlayout2.addWidget(dbButton)
+hlayout2.addWidget(lineEdit)
+hlayout2.addWidget(fiButton)
 
 vlayout = QVBoxLayout()
 vlayout.addLayout(hlayout1)
