@@ -1,6 +1,3 @@
-import sys,re,os,dropbox
-from PyQt4.QtCore import *; from PyQt4.QtGui import *; from PyQt4.QtWebKit import QWebView
-
 # settings
 listfile = 'E:/Note-/files.txt' # format: 字體    E:/Jekyll/_Notes/IT/Fonts.md
 pandoc = 'D:/Progra~1/Bulky/Pandoc/pandoc.exe'
@@ -12,24 +9,37 @@ WinSCP = 'D:/Progra~1/C/WinSCP/winscp.com'
 server = 'https://usernameoremail:password@dav.example.com/'
 oauth2 = 'youroauth2'
 
+import sys,re,os,dropbox
+from PyQt4.QtGui import *; from PyQt4.QtWebKit import QWebView
+
+# generate the output folder
+outfolderExist=os.path.isdir(outfolder)
+if outfolderExist == False:
+	os.mkdir(outfolder)
+
 # open the list
 def initialize():
-	outfolderExist=os.path.isdir(outfolder)
-	if outfolderExist == False:
-		os.mkdir(outfolder)
-	global filedict, namelist
-	namelist = ['All Files', 'Style']
+	listWidget.clear()
+	global filedict
+	add2list(1, 'All Files')
+	add2list(2, 'Style')
+	j = 2
 	filedict = {'All Files': listfile, 'Style': cssjs}
-	f = open(listfile, 'r', encoding='utf-8')
-	filelist = f.read().splitlines()
-	f.close()
-	getname = re.compile(u'^.+(?=    )')
-	getpath = re.compile(u'(?<=    ).+$')
+	with open(listfile, 'r', encoding='utf-8') as f:
+		filelist = f.read().splitlines()
 	for i in filelist:
-		name = getname.search(i).group()
-		path = getpath.search(i).group()
+		name = re.sub(r'    .+$', '', i)
+		path = re.sub(r'^.+    ', '', i)
 		filedict[name] = path
-		namelist.append(name) # sequence of elements in filedict is strange
+		j += 1
+		add2list(j, name)
+
+# add item to listWidget with format
+def add2list(j, name):
+	lItem = QListWidgetItem(name)
+	lItem.setBackgroundColor(QColor('black'))
+	lItem.setTextColor(QColor('white'))
+	listWidget.insertItem(j, lItem)
 
 # get filename from fullpath
 def getname(fullpath):
@@ -40,37 +50,17 @@ def getname(fullpath):
 def outpath(inpath):
 	return outfolder + getname(inpath) + '.html'
 
-# load list in listWidget
-def loadlist():
-	initialize()
-	listItem = []
-	for name in namelist:
-		lItem = QListWidgetItem(name)
-		lItem.setBackgroundColor(QColor('black'))
-		lItem.setTextColor(QColor('white'))
-		listItem.append(lItem)
-	for i in range(len(listItem)):
-		listWidget.insertItem(i+1,listItem[i])
-
 # get current text in list
-def getcurrent():
+def getCurrentListItem():
 	return listWidget.currentItem().text()
 
-# generate tab
-def tab(title):
-	tabWidget.insertTab(0, QWebView(), title)
-	tabWidget.setCurrentIndex(0)
-
-# modify QTabWidget
+# apply some changes to QTabWidget
 class TabWidget(QTabWidget):
 	def __init__(self, parent=None):
 		super (TabWidget, self).__init__(parent)
 		self.setTabsClosable(True)
 		self.tabCloseRequested.connect(self.closeTab)
 		self.setMovable(True)
-		self.addNewTab()
-	def tabRemoved(self, index):
-		self.tabBar().setVisible(self.count() > 1)
 	def closeTab(self,index):
 		self.last_closed_doc =  self.widget(index)
 		self.removeTab(index)
@@ -86,15 +76,15 @@ icon = QIcon(widget.style().standardIcon(QStyle.SP_CommandLink)) # generate icon
 widget.setWindowIcon(icon)
 tabWidget = TabWidget()
 listWidget = QListWidget()
-loadlist()
+initialize()
 
 # view button
 viButton = QPushButton('View')
 def view():
-	visit = open(outpath(filedict[getcurrent()]), 'r', encoding='utf-8')
-	tabWidget.setTabText(tabWidget.currentIndex(), getcurrent())
-	crtabwd = tabWidget.currentWidget()
-	crtabwd.setHtml(visit.read())
+	with open(outpath(filedict[getCurrentListItem()]), 'r', encoding='utf-8') as visit:
+		tabWidget.setTabText(tabWidget.currentIndex(), getCurrentListItem())
+		crtabwd = tabWidget.currentWidget()
+		crtabwd.setHtml(visit.read())
 viButton.clicked.connect(view)
 
 # create and view in new tab button
@@ -109,7 +99,7 @@ geButton = QPushButton('Regenerate')
 def html(infile, informat):
 	os.system(pandoc + ' ' + infile + ' -f ' + informat + ' -t html --highlight-style=pygments -H ' + cssjs + ' -s -o ' + outpath(infile))
 def generate():
-	itempath = filedict[getcurrent()]
+	itempath = filedict[getCurrentListItem()]
 	if itempath[-2:] == 'md' or itempath[-3:] == 'txt':
 		html(itempath, 'markdown_github')
 	elif itempath[-7:] == 'textile':
@@ -126,7 +116,7 @@ geButton.clicked.connect(generate)
 # edit button
 edButton = QPushButton('Edit')
 def edit():
-	os.system(te + ' ' + filedict[getcurrent()])
+	os.system(te + ' ' + filedict[getCurrentListItem()])
 edButton.clicked.connect(edit)
 
 # add button
@@ -135,33 +125,29 @@ def add():
 	text, ok = QInputDialog.getText(widget, 'Add', 'Add')
 	if ok:
 		rectified = re.sub(r'\\', "/", text)
-		f = open(listfile, 'a+', encoding='utf-8')
-		f.write('\n' + rectified)
-		f.close()
+		with open(listfile, 'a+', encoding='utf-8') as f:
+			f.write('\n' + rectified)
 		refresh()
 adButton.clicked.connect(add)
 
 # refresh button
 f5Button = QPushButton('Refresh List')
-def refresh():
-	listWidget.clear()
-	loadlist()
-f5Button.clicked.connect(refresh)
+f5Button.clicked.connect(initialize)
 
 # backup button
 baButton = QPushButton('Backup')
 def backup():
-	os.system(WinSCP + ' /command "open ' + server + '" "put ' + re.sub(r'\/', r'\\', filedict[getcurrent()]) + ' ' + upfolder + '" "exit"')
+	os.system(WinSCP + ' /command "open ' + server + '" "put ' + re.sub(r'\/', r'\\', filedict[getCurrentListItem()]) + ' ' + upfolder + '" "exit"')
 baButton.clicked.connect(backup)
 
 # dropbox button
 dbButton = QPushButton('Dropbox')
 def dropbox():
 	dbclient = dropbox.client.DropboxClient(oauth2)
-	fullpath = filedict[getcurrent()]
+	fullpath = filedict[getCurrentListItem()]
 	dbpath = re.search(u'/[^/]+$', fullpath)
-	f = open(fullpath, 'rb')
-	response = dbclient.put_file(dbpath.group(), f, overwrite=True)
+	with open(fullpath, 'rb') as f:
+		response = dbclient.put_file(dbpath.group(), f, overwrite=True)
 dbButton.clicked.connect(dropbox)
 
 # input box and find button
