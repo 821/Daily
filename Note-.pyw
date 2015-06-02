@@ -10,12 +10,7 @@ server = 'https://usernameoremail:password@dav.example.com/'
 oauth2 = 'youroauth2'
 
 import sys,re,os,dropbox
-from PyQt4.QtGui import *; from PyQt4.QtWebKit import QWebView
-
-# generate the output folder
-outfolderExist=os.path.isdir(outfolder)
-if outfolderExist == False:
-	os.mkdir(outfolder)
+from PyQt4.QtGui import *; from PyQt4.QtWebKit import QWebView; from PyQt4.QtCore import Qt
 
 # open the list
 def initialize():
@@ -33,6 +28,12 @@ def initialize():
 		filedict[name] = path
 		j += 1
 		add2list(j, name)
+
+# check existence and create
+def foldercreate(path):
+	folderexist = os.path.isdir(path)
+	if folderexist == False:
+		os.mkdir(path)
 
 # add item to listWidget with format
 def add2list(j, name):
@@ -62,7 +63,7 @@ class TabWidget(QTabWidget):
 		self.tabCloseRequested.connect(self.closeTab)
 		self.setMovable(True)
 	def closeTab(self,index):
-		self.last_closed_doc =  self.widget(index)
+		self.last_closed_doc = self.widget(index)
 		self.removeTab(index)
 	def addNewTab(self,title = "Untitled"):
 		self.insertTab(0, QWebView(), title)
@@ -71,12 +72,13 @@ class TabWidget(QTabWidget):
 # start here
 app = QApplication(sys.argv)
 widget = QWidget()
-widget.setWindowTitle('Note-')
 icon = QIcon(widget.style().standardIcon(QStyle.SP_CommandLink)) # generate icon
 widget.setWindowIcon(icon)
+widget.setWindowTitle('Note-')
 tabWidget = TabWidget()
 listWidget = QListWidget()
 initialize()
+foldercreate(outfolder)
 
 # view button
 viButton = QPushButton('View')
@@ -115,9 +117,7 @@ geButton.clicked.connect(generate)
 
 # edit button
 edButton = QPushButton('Edit')
-def edit():
-	os.system(te + ' ' + filedict[getCurrentListItem()])
-edButton.clicked.connect(edit)
+edButton.clicked.connect(lambda:os.system(te + ' ' + filedict[getCurrentListItem()]))
 
 # add button
 adButton = QPushButton('Add')
@@ -136,9 +136,7 @@ f5Button.clicked.connect(initialize)
 
 # backup button
 baButton = QPushButton('Backup')
-def backup():
-	os.system(WinSCP + ' /command "open ' + server + '" "put ' + re.sub(r'\/', r'\\', filedict[getCurrentListItem()]) + ' ' + upfolder + '" "exit"')
-baButton.clicked.connect(backup)
+baButton.clicked.connect(lambda:os.system(WinSCP + ' /command "open ' + server + '" "put ' + re.sub(r'\/', r'\\', filedict[getCurrentListItem()]) + ' ' + upfolder + '" "exit"'))
 
 # dropbox button
 dbButton = QPushButton('Dropbox')
@@ -151,19 +149,32 @@ def dropbox():
 dbButton.clicked.connect(dropbox)
 
 # input box and find button
-lineEdit = QLineEdit()
+blineEdit = QLineEdit()
 fiButton = QPushButton('Find Next')
 def findnext():
 	crtabwd = tabWidget.currentWidget()
-	next = crtabwd.findText(lineEdit.text())
+	next = crtabwd.findText(blineEdit.text())
 	crtabwd.focusNextChild(next)
 fiButton.clicked.connect(findnext)
+
+# find in list
+llineEdit = QLineEdit()
+flButton = QPushButton('Find in List')
+def fil():
+	initialize()
+	founditems = listWidget.findItems(llineEdit.text(), Qt.MatchFlag(16) and Qt.MatchFlag(1))
+	for item in founditems:
+		item.setBackgroundColor(QColor('blue'))
+	listWidget.setCurrentItem(founditems[0])
+flButton.clicked.connect(fil)
 
 # layouts
 hlayout1 = QHBoxLayout()
 hlayout1.addWidget(listWidget)
 hlayout1.addWidget(tabWidget)
 hlayout2 = QHBoxLayout()
+hlayout2.addWidget(flButton)
+hlayout2.addWidget(llineEdit)
 hlayout2.addWidget(viButton)
 hlayout2.addWidget(ntButton)
 hlayout2.addWidget(geButton)
@@ -172,7 +183,7 @@ hlayout2.addWidget(adButton)
 hlayout2.addWidget(f5Button)
 hlayout2.addWidget(baButton)
 hlayout2.addWidget(dbButton)
-hlayout2.addWidget(lineEdit)
+hlayout2.addWidget(blineEdit)
 hlayout2.addWidget(fiButton)
 vlayout = QVBoxLayout()
 vlayout.addLayout(hlayout1)
