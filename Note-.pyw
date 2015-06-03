@@ -1,16 +1,6 @@
-# settings
-listfile = 'E:/Note-/files.txt' # format: 字體    E:/Jekyll/_Notes/IT/Fonts.md
-pandoc = 'D:/Progra~1/Bulky/Pandoc/pandoc.exe'
-te = 'D:/Progra~1/A/EmEditor/EmEditor.exe'
-cssjs = 'E:/Note-/style.css'
-outfolder = 'E:/Note-/html/' # will generate if not exist
-upfolder = '/Note-/'
-WinSCP = 'D:/Progra~1/C/WinSCP/winscp.com'
-server = 'https://usernameoremail:password@dav.example.com/'
-oauth2 = 'youroauth2'
-
 import sys,re,os,dropbox
-from PyQt4.QtGui import *; from PyQt4.QtWebKit import QWebView; from PyQt4.QtCore import Qt
+from PyQt4.QtGui import *; from PyQt4.QtWebKit import QWebView; from PyQt4.QtCore import Qt,QObject
+from conf import *
 
 # open the list
 def initialize():
@@ -42,16 +32,12 @@ def add2list(j, name):
 	lItem.setTextColor(QColor('white'))
 	listWidget.insertItem(j, lItem)
 
-# get filename from fullpath
+# get some variables conviniently
 def getname(fullpath):
 	reget = re.compile(u'(?<=/)[^/]+$')
 	return reget.search(fullpath).group()
-
-# generate the output path
 def outpath(inpath):
 	return outfolder + getname(inpath) + '.html'
-
-# get current text in list
 def getCurrentListItem():
 	return listWidget.currentItem().text()
 
@@ -70,8 +56,7 @@ def newtab():
 # generate from input files and view output
 def html(infile, informat):
 	os.system(pandoc + ' ' + infile + ' -f ' + informat + ' -t html --highlight-style=pygments -H ' + cssjs + ' -s -o ' + outpath(infile))
-def generate():
-	itempath = filedict[getCurrentListItem()]
+def generate(itempath):
 	if itempath[-2:] == 'md' or itempath[-3:] == 'txt':
 		html(itempath, 'markdown_github')
 	elif itempath[-7:] == 'textile':
@@ -82,11 +67,19 @@ def generate():
 		html(itempath, 'rst')
 	else:
 		html(itempath, 'html')
+def regenerate():
+	generate(filedict[getCurrentListItem()])
 	view()
+def generateall():
+	for v in filedict.values():
+		generate(v)
 
-# edit selected item
+# edit selected item and the item being viewed
 def edit():
 	os.system(te + ' ' + filedict[getCurrentListItem()])
+def editview():
+	tabtitle = tabWidget.tabText(tabWidget.currentIndex())
+	os.system(te + ' ' + filedict[tabtitle])
 
 # add item
 def add():
@@ -147,6 +140,7 @@ class TabWidget(QTabWidget):
 		self.setCurrentIndex(0)
 
 # start here
+foldercreate(outfolder)
 app = QApplication(sys.argv)
 widget = QWidget()
 icon = QIcon(widget.style().standardIcon(QStyle.SP_CommandLink)) # generate icon
@@ -154,33 +148,36 @@ widget.setWindowIcon(icon)
 widget.setWindowTitle('Note-')
 tabWidget = TabWidget()
 listWidget = QListWidget()
-initialize()
-foldercreate(outfolder)
 llineEdit, blineEdit = QLineEdit(), QLineEdit()
-hlayout1 = QHBoxLayout()
-hlayout1.addWidget(listWidget)
-hlayout1.addWidget(tabWidget)
-hlayout2.addWidget(llineEdit, 0, 3)
-hlayout2.addWidget(blineEdit, 0, 10)
+buttonLayout = QGridLayout()
+buttonLayout.addWidget(llineEdit, 0, 3)
+buttonLayout.addWidget(blineEdit, 0, 13)
 for text, func, column in (("Reload List", initialize, 0),
 					("Find in List", fil, 1),
 					("Next Item", nextitem, 2),
 					("View", view, 4),
 					("New Tab", newtab, 5),
-					("Regenerate", generate, 6),
-					("Edit", edit, 7),
-					("Add", add, 8),
-					("Backup", backup, 9),
-					("Find Next", findnext, 11)):
+					("Regenerate", regenerate, 6),
+					("Generate All", generateall, 7),
+					("Edit", edit, 8),
+					("Edit Viewed", editview, 9),
+					("Add Note", add, 10),
+					("Backup", backup, 11),
+					("Dropbox", dropbox, 12),
+					("Find Next", findnext, 14)):
 	button = QPushButton(text)
 	button.clicked.connect(func)
-	hlayout2.addWidget(button, 0, column)
-vlayout = QVBoxLayout()
-vlayout.addLayout(hlayout1)
-vlayout.addLayout(hlayout2)
-widget.setLayout(vlayout)
+	buttonLayout.addWidget(button, 0, column)
+rightHalf = QVBoxLayout()
+rightHalf.addWidget(tabWidget)
+rightHalf.addLayout(buttonLayout)
+fullLayout = QHBoxLayout()
+fullLayout.addWidget(listWidget)
+fullLayout.addLayout(rightHalf)
+widget.setLayout(fullLayout)
 screen = QDesktopWidget().screenGeometry()
 widget.setGeometry(0, 100, screen.width(), screen.height()-130)
 listWidget.setFixedWidth(150)
+initialize()
 widget.show()
 app.exec_()
