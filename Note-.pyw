@@ -1,61 +1,63 @@
-import sys,re,os,shutil
-from PyQt4.QtGui import *; from PyQt4.QtWebKit import QWebView; from PyQt4.QtCore import Qt,QObject, QUrl
+import sys,re,os,shutil,datetime
+from PyQt4.QtGui import *; from PyQt4.QtWebKit import QWebView; from PyQt4.QtCore import Qt,QObject
 from conf import * # import settings
 
-# open the list
-def initialize():
-	listWidget.clear()
-	global filedict
-	add2list('All Files')
-	add2list('Style')
-	filedict = {'All Files': listfile, 'Style': cssjs}
-	with open(listfile, 'r', encoding='utf-8') as f:
-		filelist = f.read().splitlines()
-	for i in filelist:
-		name = re.sub(r'    .+$', '', i)
-		path = re.sub(r'^.+    ', '', i)
-		filedict[name] = path
-		add2list(name)
-
-# check existence and create
-def foldercreate(path):
-	folderexist = os.path.isdir(path)
-	if folderexist == False:
-		os.mkdir(path)
-
+# convinience functions
+outpath = lambda inpath: outfolder + os.path.basename(inpath) + '.html'
+crListItem = lambda: listWidget.currentItem().text()
+crTabWidget = lambda: tabWidget.currentWidget()
+def lastbackup():
+	flist = []
+	for i in os.listdir(localbackupfolder):
+		if i[-3:] == 'zip':
+			flist.append(i)
+	return os.path.join(localbackupfolder, max(flist))
+def alldo(func, list):
+	for v in list:
+		func(v)
 # add item to listWidget with format
 def add2list(name):
 	lItem = QListWidgetItem(name)
 	lItem.setBackgroundColor(QColor('black'))
 	lItem.setTextColor(QColor('white'))
 	listWidget.addItem(lItem)
+# check existence and create
+def foldercreate(path):
+	folderexist = os.path.isdir(path)
+	if folderexist == False:
+		os.mkdir(path)
+# create buttons with function and geometry
+def buttoncreate(text, func, column, key):
+	button = QPushButton(text)
+	button.clicked.connect(func)
+	buttonLayout.addWidget(button, 0, column)
+	QShortcut(QKeySequence(key), widget, func)
 
-# convinience functions
-def getname(fullpath):
-	reget = re.compile(u'(?<=/)[^/]+$')
-	return reget.search(fullpath).group()
-def outpath(inpath):
-	return outfolder + getname(inpath) + '.html'
-def getCurrentListItem():
-	return listWidget.currentItem().text()
-def alldo(func):
-	for v in filedict.values():
-		func(v)
+# open the list
+def initialize():
+	listWidget.clear()
+	global filedict
+	alldo(add2list, ['All Files', 'Style'])
+	filedict = {'All Files': listfile, 'Style': cssjs}
+	with open(listfile, 'r', encoding='utf-8') as f:
+		filelist = f.read().splitlines()
+		for i in filelist:
+			name = re.sub(r'    .+$', '', i)
+			path = re.sub(r'^.+    ', '', i)
+			filedict[name] = os.path.normpath(path)
+			add2list(name)
 
-# view button
+# viewing related
 def view():
-	with open(outpath(filedict[getCurrentListItem()]), 'r', encoding='utf-8') as visit:
-		tabWidget.setTabText(tabWidget.currentIndex(), getCurrentListItem())
-		tabWidget.currentWidget().setHtml(visit.read())
-
-# create and view in new tab button
+	with open(outpath(filedict[crListItem()]), 'r', encoding='utf-8') as visit:
+		tabWidget.setTabText(tabWidget.currentIndex(), crListItem())
+		crTabWidget().setHtml(visit.read())
 def newtab():
 	tabWidget.addNewTab()
 	view()
 
-# generate from input files and view output
-def html(infile, informat):
-	os.system(pandoc + ' ' + infile + ' -f ' + informat + ' -t html --highlight-style=pygments -H ' + cssjs + ' -s -o ' + outpath(infile))
+# generate from input files
+html = lambda infile, informat: os.system(pandoc + ' ' + infile + ' -f ' + informat + ' -t html --highlight-style=pygments -H ' + cssjs + ' -s -o ' + outpath(infile))
 def generate(itempath):
 	if itempath[-2:] == 'md' or itempath[-3:] == 'txt':
 		html(itempath, 'markdown_github')
@@ -68,55 +70,52 @@ def generate(itempath):
 	else:
 		html(itempath, 'html')
 def regenerate():
-	generate(filedict[getCurrentListItem()])
+	generate(filedict[crListItem()])
 	view()
 
 # edit selected item and the item being viewed
-def edit():
-	os.system(te + ' ' + filedict[getCurrentListItem()])
+edit = lambda path: os.system(te + ' ' + path)
 def editview():
 	tabtitle = tabWidget.tabText(tabWidget.currentIndex())
-	os.system(te + ' ' + filedict[tabtitle])
+	edit(filedict[tabtitle])
 
 # backup
-def ftp(path):
-	os.system(WinSCP + ' /command "open ' + server + '" "put ' + re.sub(r'\/', r'\\', path) + ' ' + upfolder + '" "exit"')
-def centralize():
-	foldercreate(localbackupfolder)
-	for v in filedict.values():
-		shutil.copyfile(v, localbackupfolder + getname(v))
-def decentralize():
-	for v in filedict.values():
-		shutil.copyfile(localbackupfolder + getname(v), v)
+zip = lambda path: os.system(szip + ' a ' + localbackupfolder + backuptime + '.zip -p' + password + ' ' + path)
+unzip = lambda path: os.system(szip + ' x ' + lastbackup() + ' -o' + os.path.dirname(path) + ' ' + os.path.basename(path) + ' -p' + password + ' -y')
+def zipall():
+	global backuptime
+	backuptime = datetime.datetime.now().strftime("%y%m%d%H%M%S")
+	alldo(zip, filedict.values())
+ftp = lambda path: os.system(WinSCP + ' /command "open ' + server + '" "put ' + path + ' ' + upfolder + '" "exit"')
+def ftpall():
+	zipall()
+	ftp(lastbackup())
 def dropbox():
 	dbclient = dropbox.client.DropboxClient(oauth2)
-	fullpath = filedict[getCurrentListItem()]
-	dbpath = re.search(u'/[^/]+$', fullpath)
-	with open(fullpath, 'rb') as f:
-		response = dbclient.put_file(dbpath.group(), f, overwrite=True)
+	with open(filedict[crListItem()], 'rb') as f:
+		response = dbclient.put_file('/' + os.path.basename(filedict[crListItem()]), f, overwrite=True)
 
 # find next
 def findnext():
-	crtabwd = tabWidget.currentWidget()
-	next = crtabwd.findText(blineEdit.text())
-	crtabwd.focusNextChild(next)
-
+	next = crTabWidget().findText(blineEdit.text())
+	crTabWidget().focusNextChild(next)
 # find in list
 def fil():
-	initialize()
-	global founditems, foundindex
-	foundindex = 0
-	founditems = listWidget.findItems(llineEdit.text(), Qt.MatchFlag(16) and Qt.MatchFlag(1)) # 1: partial search, 4:regex, 16: case insensitive
-	for item in founditems:
-		item.setBackgroundColor(QColor('blue'))
-	listWidget.setCurrentItem(founditems[0])
-def nextitem():
-	global foundindex
-	if foundindex == len(founditems) - 1:
+	global founditems, foundindex, findtext
+	if findtext != llineEdit.text():
+		initialize()
 		foundindex = 0
+		founditems = listWidget.findItems(llineEdit.text(), Qt.MatchFlag(16) and Qt.MatchFlag(1)) # 1: partial search, 4:regex, 16: case insensitive
+		for item in founditems:
+			item.setBackgroundColor(QColor('blue'))
+		listWidget.setCurrentItem(founditems[0])
+		findtext = llineEdit.text()
 	else:
-		foundindex += 1
-	listWidget.setCurrentItem(founditems[foundindex])
+		if foundindex == len(founditems) - 1:
+			foundindex = 0
+		else:
+			foundindex += 1
+		listWidget.setCurrentItem(founditems[foundindex])
 
 # apply some changes to QTabWidget
 class TabWidget(QTabWidget):
@@ -125,6 +124,7 @@ class TabWidget(QTabWidget):
 		self.setTabsClosable(True)
 		self.tabCloseRequested.connect(self.closeTab)
 		self.setMovable(True)
+		self.addNewTab()
 	def closeTab(self,index):
 		self.last_closed_doc = self.widget(index)
 		self.removeTab(index)
@@ -133,41 +133,38 @@ class TabWidget(QTabWidget):
 		self.setCurrentIndex(0)
 
 # start here
-foldercreate(outfolder)
+findtext = 0
+alldo(foldercreate, [outfolder, localbackupfolder])
 app = QApplication(sys.argv)
 widget = QWidget()
 icon = QIcon(widget.style().standardIcon(QStyle.SP_CommandLink)) # generate icon
 widget.setWindowIcon(icon)
 widget.setWindowTitle('Note-')
+buttonLayout = QGridLayout()
+rightHalf = QVBoxLayout()
+fullLayout = QHBoxLayout()
 tabWidget = TabWidget()
 listWidget = QListWidget()
 listWidget.setFixedWidth(150)
 llineEdit, blineEdit = QLineEdit(), QLineEdit()
-buttonLayout = QGridLayout()
 buttonLayout.addWidget(llineEdit, 0, 3)
 buttonLayout.addWidget(blineEdit, 0, 16)
-for text, func, column in (("Reload List", initialize, 0),
-					("Find in List", fil, 1),
-					("Next Item", nextitem, 2),
-					("View", view, 4),
-					("New Tab", newtab, 5),
-					("Regenerate", regenerate, 6),
-					("Generate All", lambda:alldo(generate), 7),
-					("Edit", edit, 8),
-					("Edit Viewed", editview, 9),
-					("FTP", lambda:ftp(filedict[getCurrentListItem()]), 11),
-					("FTP All", lambda:alldo(ftp), 12),
-					("Dropbox", dropbox, 13),
-					("Centralize", centralize, 14),
-					("Decentralize", decentralize, 15),
-					("Find Next", findnext, 17)):
-	button = QPushButton(text)
-	button.clicked.connect(func)
-	buttonLayout.addWidget(button, 0, column)
-rightHalf = QVBoxLayout()
+buttoncreate("Reload List F1", initialize, 0, Qt.Key_F1)
+buttoncreate("Find F2", fil, 1, Qt.Key_F2)
+buttoncreate("View F3", view, 4, Qt.Key_F3)
+buttoncreate("Tab F4", newtab, 5, Qt.Key_F4)
+buttoncreate("Generate F5", regenerate, 6, Qt.Key_F5)
+buttoncreate("Generate All C+F5", lambda:alldo(generate, filedict.values()), 7, Qt.CTRL + Qt.Key_F5)
+buttoncreate("Edit F6", lambda: edit(filedict[crListItem()]), 8, Qt.Key_F6)
+buttoncreate("Edit Viewed F7", editview, 9, Qt.Key_F7)
+buttoncreate("FTP F8", lambda: ftp(filedict[crListItem()]), 11, Qt.Key_F8)
+buttoncreate("FTP All F9", ftpall, 12, Qt.Key_F9)
+buttoncreate("Dropbox F10", dropbox, 13, Qt.Key_F10)
+buttoncreate("Pack All F11", zipall, 14, Qt.Key_F11)
+buttoncreate("Unpack One C+F11", lambda:unzip(filedict[crListItem()]), 15, Qt.CTRL + Qt.Key_F11)
+buttoncreate("Find Next F12", findnext, 17, Qt.Key_F12)
 rightHalf.addWidget(tabWidget)
 rightHalf.addLayout(buttonLayout)
-fullLayout = QHBoxLayout()
 fullLayout.addWidget(listWidget)
 fullLayout.addLayout(rightHalf)
 widget.setLayout(fullLayout)
