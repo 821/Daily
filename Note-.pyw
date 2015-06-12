@@ -27,9 +27,10 @@ def foldercreate(path):
 	if folderexist == False:
 		os.mkdir(path)
 # create buttons with function and geometry
-def buttoncreate(text, func, column, key):
+def buttoncreate(text, tooltip, func, column, key):
 	button = QPushButton(text)
 	button.clicked.connect(func)
+	button.setToolTip(tooltip)
 	buttonLayout.addWidget(button, 0, column)
 	QShortcut(QKeySequence(key), widget, func)
 
@@ -67,6 +68,8 @@ def generate(itempath):
 		html(itempath, 'latex')
 	elif itempath[-3:] == 'rst':
 		html(itempath, 'rst')
+	elif itempath[-3:] == 'org':
+		html(itempath, 'org')
 	else:
 		html(itempath, 'html')
 def regenerate():
@@ -125,10 +128,10 @@ class TabWidget(QTabWidget):
 		self.tabCloseRequested.connect(self.closeTab)
 		self.setMovable(True)
 		self.addNewTab()
-	def closeTab(self,index):
+	def closeTab(self, index):
 		self.last_closed_doc = self.widget(index)
 		self.removeTab(index)
-	def addNewTab(self,title = "Untitled"):
+	def addNewTab(self, title = "Untitled"):
 		self.insertTab(0, QWebView(), title)
 		self.setCurrentIndex(0)
 
@@ -137,9 +140,8 @@ findtext = 0
 alldo(foldercreate, [outfolder, localbackupfolder])
 app = QApplication(sys.argv)
 widget = QWidget()
-icon = QIcon(widget.style().standardIcon(QStyle.SP_CommandLink)) # generate icon
-widget.setWindowIcon(icon)
 widget.setWindowTitle('Note-')
+widget.setWindowIcon(QIcon(widget.style().standardIcon(QStyle.SP_DialogSaveButton)))
 buttonLayout = QGridLayout()
 rightHalf = QVBoxLayout()
 fullLayout = QHBoxLayout()
@@ -147,22 +149,22 @@ tabWidget = TabWidget()
 listWidget = QListWidget()
 listWidget.setFixedWidth(150)
 llineEdit, blineEdit = QLineEdit(), QLineEdit()
+buttoncreate('List F1', 'Reload the list', initialize, 0, Qt.Key_F1)
+buttoncreate('Find F2', 'Find the next item with the string', fil, 1, Qt.Key_F2)
 buttonLayout.addWidget(llineEdit, 0, 3)
+buttoncreate('View F3', 'View selected item', view, 4, Qt.Key_F3)
+buttoncreate('Tab F4', 'View in a new tab', newtab, 5, Qt.Key_F4)
+buttoncreate('Convert F5', 'Generate selected item to HTML', regenerate, 6, Qt.Key_F5)
+buttoncreate('CA C+F5', 'Generate all items to HTML', lambda:alldo(generate, filedict.values()), 7, Qt.CTRL + Qt.Key_F5)
+buttoncreate('Edit F6', 'Edit selected item', lambda: edit(filedict[crListItem()]), 8, Qt.Key_F6)
+buttoncreate('ET F7', 'Edit item in current tab', editview, 9, Qt.Key_F7)
+buttoncreate('FTP F8', 'Upload selected item to FTP/WebDAV', lambda: ftp(filedict[crListItem()]), 11, Qt.Key_F8)
+buttoncreate('FTP All F9', 'Pack all items with password and upload to FTP/WebDAV', ftpall, 12, Qt.Key_F9)
+buttoncreate('Dropbox F10', 'Upload selected item to Dropbox', dropbox, 13, Qt.Key_F10)
+buttoncreate('Pack F11', 'Pack all items with password', zipall, 14, Qt.Key_F11)
+buttoncreate('Restore C+F11', 'Restore selected item from the latest pack', lambda:unzip(filedict[crListItem()]), 15, Qt.CTRL + Qt.Key_F11)
 buttonLayout.addWidget(blineEdit, 0, 16)
-buttoncreate("Reload List F1", initialize, 0, Qt.Key_F1)
-buttoncreate("Find F2", fil, 1, Qt.Key_F2)
-buttoncreate("View F3", view, 4, Qt.Key_F3)
-buttoncreate("Tab F4", newtab, 5, Qt.Key_F4)
-buttoncreate("Generate F5", regenerate, 6, Qt.Key_F5)
-buttoncreate("Generate All C+F5", lambda:alldo(generate, filedict.values()), 7, Qt.CTRL + Qt.Key_F5)
-buttoncreate("Edit F6", lambda: edit(filedict[crListItem()]), 8, Qt.Key_F6)
-buttoncreate("Edit Viewed F7", editview, 9, Qt.Key_F7)
-buttoncreate("FTP F8", lambda: ftp(filedict[crListItem()]), 11, Qt.Key_F8)
-buttoncreate("FTP All F9", ftpall, 12, Qt.Key_F9)
-buttoncreate("Dropbox F10", dropbox, 13, Qt.Key_F10)
-buttoncreate("Pack All F11", zipall, 14, Qt.Key_F11)
-buttoncreate("Unpack One C+F11", lambda:unzip(filedict[crListItem()]), 15, Qt.CTRL + Qt.Key_F11)
-buttoncreate("Find Next F12", findnext, 17, Qt.Key_F12)
+buttoncreate('Find Next F12', 'Find string in currently viewing item', findnext, 17, Qt.Key_F12)
 rightHalf.addWidget(tabWidget)
 rightHalf.addLayout(buttonLayout)
 fullLayout.addWidget(listWidget)
