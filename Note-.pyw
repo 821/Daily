@@ -6,17 +6,12 @@ from conf import * # import settings
 outpath = lambda inpath: outfolder + os.path.basename(inpath) + '.html'
 crListItem = lambda: listWidget.currentItem().text()
 crTabWidget = lambda: tabWidget.currentWidget()
-def lastbackup():
-	flist = []
-	for i in os.listdir(localbackupfolder):
-		if i[-3:] == 'zip':
-			flist.append(i)
-	return os.path.join(localbackupfolder, max(flist))
+lastbackup = lambda: os.path.join(zipfolder, max(os.listdir(zipfolder)))
 def alldo(func, list):
 	for v in list:
 		func(v)
 # add item to listWidget with format
-def add2list(name):
+def add2List(name):
 	lItem = QListWidgetItem(name)
 	lItem.setBackgroundColor(QColor('black'))
 	lItem.setTextColor(QColor('white'))
@@ -27,7 +22,7 @@ def foldercreate(path):
 	if folderexist == False:
 		os.mkdir(path)
 # create buttons with function and geometry
-def buttoncreate(text, tooltip, func, column, key):
+def pushButton(text, tooltip, func, column, key):
 	button = QPushButton(text)
 	button.clicked.connect(func)
 	button.setToolTip(tooltip)
@@ -38,15 +33,13 @@ def buttoncreate(text, tooltip, func, column, key):
 def initialize():
 	listWidget.clear()
 	global filedict
-	alldo(add2list, ['All Files', 'Style'])
+	alldo(add2List, ['All Files', 'Style'])
 	filedict = {'All Files': listfile, 'Style': cssjs}
 	with open(listfile, 'r', encoding='utf-8') as f:
-		filelist = f.read().splitlines()
-		for i in filelist:
-			name = re.sub(r'    .+$', '', i)
-			path = re.sub(r'^.+    ', '', i)
-			filedict[name] = os.path.normpath(path)
-			add2list(name)
+		for i in f.read().splitlines():
+			j = i.split('    ')
+			filedict[j[0]] = os.path.normpath(j[1])
+			add2List(j[0])
 
 # viewing related
 def view():
@@ -75,15 +68,16 @@ def generate(itempath):
 def regenerate():
 	generate(filedict[crListItem()])
 	view()
+def refresh():
+	generate(filedict[tabWidget.tabText(tabWidget.currentIndex())])
+	view()
 
 # edit selected item and the item being viewed
 edit = lambda path: os.system(te + ' ' + path)
-def editview():
-	tabtitle = tabWidget.tabText(tabWidget.currentIndex())
-	edit(filedict[tabtitle])
+editview = lambda: edit(filedict[tabWidget.tabText(tabWidget.currentIndex())])
 
 # backup
-zip = lambda path: os.system(szip + ' a ' + localbackupfolder + backuptime + '.zip -p' + password + ' ' + path)
+zip = lambda path: os.system(szip + ' a ' + os.path.join(zipfolder, backuptime + '.zip') + ' -p' + password + ' ' + path)
 unzip = lambda path: os.system(szip + ' x ' + lastbackup() + ' -o' + os.path.dirname(path) + ' ' + os.path.basename(path) + ' -p' + password + ' -y')
 def zipall():
 	global backuptime
@@ -99,21 +93,17 @@ def dropbox():
 		response = dbclient.put_file('/' + os.path.basename(filedict[crListItem()]), f, overwrite=True)
 
 # find next
-def findnext():
-	next = crTabWidget().findText(blineEdit.text())
-	crTabWidget().focusNextChild(next)
-# find in list
+findnext = lambda: crTabWidget().focusNextChild(crTabWidget().findText(blineEdit.text()))
 def fil():
 	global founditems, foundindex, findtext
-	if findtext != llineEdit.text():
-		initialize()
+	if findtext != llineEdit.text(): # new search words
+		initialize() # clear previous highlights
 		foundindex = 0
 		founditems = listWidget.findItems(llineEdit.text(), Qt.MatchFlag(16) and Qt.MatchFlag(1)) # 1: partial search, 4:regex, 16: case insensitive
-		for item in founditems:
-			item.setBackgroundColor(QColor('blue'))
-		listWidget.setCurrentItem(founditems[0])
+		alldo(lambda i: i.setBackgroundColor(QColor('blue')), founditems)
+		listWidget.setCurrentItem(founditems[0]) # select the first result
 		findtext = llineEdit.text()
-	else:
+	else: # get next result of the last search
 		if foundindex == len(founditems) - 1:
 			foundindex = 0
 		else:
@@ -131,13 +121,13 @@ class TabWidget(QTabWidget):
 	def closeTab(self, index):
 		self.last_closed_doc = self.widget(index)
 		self.removeTab(index)
-	def addNewTab(self, title = "Untitled"):
+	def addNewTab(self, title = 'Untitled'):
 		self.insertTab(0, QWebView(), title)
 		self.setCurrentIndex(0)
 
 # start here
-findtext = 0
-alldo(foldercreate, [outfolder, localbackupfolder])
+findtext = ''
+alldo(foldercreate, [outfolder, zipfolder])
 app = QApplication(sys.argv)
 widget = QWidget()
 widget.setWindowTitle('Note-')
@@ -149,22 +139,23 @@ tabWidget = TabWidget()
 listWidget = QListWidget()
 listWidget.setFixedWidth(150)
 llineEdit, blineEdit = QLineEdit(), QLineEdit()
-buttoncreate('List F1', 'Reload the list', initialize, 0, Qt.Key_F1)
-buttoncreate('Find F2', 'Find the next item with the string', fil, 1, Qt.Key_F2)
+pushButton('List F1', 'Reload the list', initialize, 0, Qt.Key_F1)
+pushButton('Find F2', 'Find the next item with the string', fil, 1, Qt.Key_F2)
 buttonLayout.addWidget(llineEdit, 0, 3)
-buttoncreate('View F3', 'View selected item', view, 4, Qt.Key_F3)
-buttoncreate('Tab F4', 'View in a new tab', newtab, 5, Qt.Key_F4)
-buttoncreate('Convert F5', 'Generate selected item to HTML', regenerate, 6, Qt.Key_F5)
-buttoncreate('CA C+F5', 'Generate all items to HTML', lambda:alldo(generate, filedict.values()), 7, Qt.CTRL + Qt.Key_F5)
-buttoncreate('Edit F6', 'Edit selected item', lambda: edit(filedict[crListItem()]), 8, Qt.Key_F6)
-buttoncreate('ET F7', 'Edit item in current tab', editview, 9, Qt.Key_F7)
-buttoncreate('FTP F8', 'Upload selected item to FTP/WebDAV', lambda: ftp(filedict[crListItem()]), 11, Qt.Key_F8)
-buttoncreate('FTP All F9', 'Pack all items with password and upload to FTP/WebDAV', ftpall, 12, Qt.Key_F9)
-buttoncreate('Dropbox F10', 'Upload selected item to Dropbox', dropbox, 13, Qt.Key_F10)
-buttoncreate('Pack F11', 'Pack all items with password', zipall, 14, Qt.Key_F11)
-buttoncreate('Restore C+F11', 'Restore selected item from the latest pack', lambda:unzip(filedict[crListItem()]), 15, Qt.CTRL + Qt.Key_F11)
+pushButton('View F3', 'View selected item', view, 4, Qt.Key_F3)
+pushButton('Tab F4', 'View in a new tab', newtab, 5, Qt.Key_F4)
+pushButton('Refresh F5', 'Generate currently viewing item to HTML', refresh, 6, Qt.Key_F5)
+pushButton('Convert F6', 'Generate selected item to HTML', regenerate, 7, Qt.Key_F6)
+pushButton('CA C+F6', 'Generate all items to HTML', lambda:alldo(generate, filedict.values()), 8, Qt.CTRL + Qt.Key_F6)
+pushButton('Edit F7', 'Edit selected item', lambda: edit(filedict[crListItem()]), 9, Qt.Key_F7)
+pushButton('ET F8', 'Edit item in current tab', editview, 10, Qt.Key_F8)
+pushButton('FTP F9', 'Upload selected item to FTP/WebDAV', lambda: ftp(filedict[crListItem()]), 11, Qt.Key_F9)
+pushButton('FA C+F9', 'Pack all items with password and upload to FTP/WebDAV', ftpall, 12, Qt.CTRL + Qt.Key_F9)
+pushButton('Dropbox F10', 'Upload selected item to Dropbox', dropbox, 13, Qt.Key_F10)
+pushButton('Pack F11', 'Pack all items with password', zipall, 14, Qt.Key_F11)
+pushButton('Restore C+F11', 'Restore selected item from the latest pack', lambda:unzip(filedict[crListItem()]), 15, Qt.CTRL + Qt.Key_F11)
 buttonLayout.addWidget(blineEdit, 0, 16)
-buttoncreate('Find Next F12', 'Find string in currently viewing item', findnext, 17, Qt.Key_F12)
+pushButton('Find Next F12', 'Find string in currently viewing item', findnext, 17, Qt.Key_F12)
 rightHalf.addWidget(tabWidget)
 rightHalf.addLayout(buttonLayout)
 fullLayout.addWidget(listWidget)
