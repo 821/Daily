@@ -42,13 +42,13 @@ def initialize():
 			add2List(j[0])
 
 # viewing related
-def view():
-	with open(outpath(filedict[crListItem()]), 'r', encoding='utf-8') as visit:
-		tabWidget.setTabText(tabWidget.currentIndex(), crListItem())
+def view(name):
+	with open(outpath(filedict[name]), 'r', encoding='utf-8') as visit:
+		tabWidget.setTabText(tabWidget.currentIndex(), name)
 		crTabWidget().setHtml(visit.read())
 def newtab():
 	tabWidget.addNewTab()
-	view()
+	view(crListItem())
 
 # generate from input files
 html = lambda infile, informat: os.system(pandoc + ' ' + infile + ' -f ' + informat + ' -t html --highlight-style=pygments -H ' + cssjs + ' -s -o ' + outpath(infile))
@@ -67,10 +67,10 @@ def generate(itempath):
 		html(itempath, 'html')
 def regenerate():
 	generate(filedict[crListItem()])
-	view()
+	view(crListItem())
 def refresh():
 	generate(filedict[tabWidget.tabText(tabWidget.currentIndex())])
-	view()
+	view(tabWidget.tabText(tabWidget.currentIndex()))
 
 # edit selected item and the item being viewed
 edit = lambda path: os.system(te + ' ' + path)
@@ -142,9 +142,9 @@ llineEdit, blineEdit = QLineEdit(), QLineEdit()
 pushButton('List F1', 'Reload the list', initialize, 0, Qt.Key_F1)
 pushButton('Find F2', 'Find the next item with the string', fil, 1, Qt.Key_F2)
 buttonLayout.addWidget(llineEdit, 0, 3)
-pushButton('View F3', 'View selected item', view, 4, Qt.Key_F3)
+pushButton('View F3', 'View selected item', lambda: view(crListItem()), 4, Qt.Key_F3)
 pushButton('Tab F4', 'View in a new tab', newtab, 5, Qt.Key_F4)
-pushButton('Refresh F5', 'Generate currently viewing item to HTML', refresh, 6, Qt.Key_F5)
+pushButton('Refresh F5', 'Regenerate currently viewing item', refresh, 6, Qt.Key_F5)
 pushButton('Convert F6', 'Generate selected item to HTML', regenerate, 7, Qt.Key_F6)
 pushButton('CA C+F6', 'Generate all items to HTML', lambda:alldo(generate, filedict.values()), 8, Qt.CTRL + Qt.Key_F6)
 pushButton('Edit F7', 'Edit selected item', lambda: edit(filedict[crListItem()]), 9, Qt.Key_F7)
