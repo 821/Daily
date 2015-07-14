@@ -4,6 +4,7 @@ Environments for Python scripts: [Python 3.4.3 x64](https://www.python.org/ftp/p
 1. View notes and link the notes to text editor.
 2. Generation of HTML files is powered by [Pandoc](http://pandoc.org/).
 3. Supports CSS and JavaScript.
+4. Multiple backup choice.
 
 ## zd.bat
 1. 爲所有子文件夾建立一個不壓縮的 zip 。

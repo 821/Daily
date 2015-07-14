@@ -1,4 +1,4 @@
-import sys,re,os,shutil,datetime
+import sys,re,os,shutil,datetime,simplenote
 from PyQt4.QtGui import *; from PyQt4.QtWebKit import QWebView; from PyQt4.QtCore import Qt,QObject
 from conf import * # import settings
 
@@ -22,11 +22,11 @@ def foldercreate(path):
 	if folderexist == False:
 		os.mkdir(path)
 # create buttons with function and geometry
-def pushButton(text, tooltip, func, column, key):
+def pushButton(text, tooltip, func, key):
 	button = QPushButton(text)
 	button.clicked.connect(func)
 	button.setToolTip(tooltip)
-	buttonLayout.addWidget(button, 0, column)
+	buttonLayout.addWidget(button)
 	QShortcut(QKeySequence(key), widget, func)
 
 # open the list
@@ -37,9 +37,10 @@ def initialize():
 	filedict = {'All Files': listfile, 'Style': cssjs}
 	with open(listfile, 'r', encoding='utf-8') as f:
 		for i in f.read().splitlines():
-			j = i.split('    ')
-			filedict[j[0]] = os.path.normpath(j[1])
-			add2List(j[0])
+			if i.find('    ') != -1:
+				j = i.split('    ')
+				filedict[j[0]] = os.path.normpath(j[1])
+				add2List(j[0])
 
 # viewing related
 def view(name):
@@ -91,6 +92,24 @@ def dropbox():
 	dbclient = dropbox.client.DropboxClient(oauth2)
 	with open(filedict[crListItem()], 'rb') as f:
 		response = dbclient.put_file('/' + os.path.basename(filedict[crListItem()]), f, overwrite=True)
+def snote(name):
+	sn = simplenote.Simplenote(snname, snpwd)
+	snkey = {}
+	with open(snkeylist, 'r', encoding='utf-8') as snkl:
+		if os.stat(snkeylist).st_size != 0:
+			for line in snkl.read().splitlines():
+				if line.find('    ') != -1:
+					j = line.split('    ')
+					snkey[j[0]] = j[1]
+	with open(filedict[name], 'r', encoding='utf-8') as f:
+		note = {'content': f.read(), 'tags': name}
+		if name in snkey:
+			note['key'] = snkey[name]
+			sn.update_note(note)
+		else:
+			snret = sn.add_note(note)
+			with open(snkeylist, 'a', encoding='utf-8') as snkl:
+				snkl.write(name + '    ' + snret[0]['key']+ '\n')
 
 # find next
 findnext = lambda: crTabWidget().focusNextChild(crTabWidget().findText(blineEdit.text()))
@@ -132,30 +151,31 @@ app = QApplication(sys.argv)
 widget = QWidget()
 widget.setWindowTitle('Note-')
 widget.setWindowIcon(QIcon(widget.style().standardIcon(QStyle.SP_DialogSaveButton)))
-buttonLayout = QGridLayout()
+buttonLayout = QHBoxLayout()
 rightHalf = QVBoxLayout()
 fullLayout = QHBoxLayout()
 tabWidget = TabWidget()
 listWidget = QListWidget()
 listWidget.setFixedWidth(150)
 llineEdit, blineEdit = QLineEdit(), QLineEdit()
-pushButton('List F1', 'Reload the list', initialize, 0, Qt.Key_F1)
-pushButton('Find F2', 'Find the next item with the string', fil, 1, Qt.Key_F2)
-buttonLayout.addWidget(llineEdit, 0, 3)
-pushButton('View F3', 'View selected item', lambda: view(crListItem()), 4, Qt.Key_F3)
-pushButton('Tab F4', 'View in a new tab', newtab, 5, Qt.Key_F4)
-pushButton('Refresh F5', 'Regenerate currently viewing item', refresh, 6, Qt.Key_F5)
-pushButton('Convert F6', 'Generate selected item to HTML', regenerate, 7, Qt.Key_F6)
-pushButton('CA C+F6', 'Generate all items to HTML', lambda:alldo(generate, filedict.values()), 8, Qt.CTRL + Qt.Key_F6)
-pushButton('Edit F7', 'Edit selected item', lambda: edit(filedict[crListItem()]), 9, Qt.Key_F7)
-pushButton('ET F8', 'Edit item in current tab', editview, 10, Qt.Key_F8)
-pushButton('FTP F9', 'Upload selected item to FTP/WebDAV', lambda: ftp(filedict[crListItem()]), 11, Qt.Key_F9)
-pushButton('FA C+F9', 'Pack all items with password and upload to FTP/WebDAV', ftpall, 12, Qt.CTRL + Qt.Key_F9)
-pushButton('Dropbox F10', 'Upload selected item to Dropbox', dropbox, 13, Qt.Key_F10)
-pushButton('Pack F11', 'Pack all items with password', zipall, 14, Qt.Key_F11)
-pushButton('Restore C+F11', 'Restore selected item from the latest pack', lambda:unzip(filedict[crListItem()]), 15, Qt.CTRL + Qt.Key_F11)
-buttonLayout.addWidget(blineEdit, 0, 16)
-pushButton('Find Next F12', 'Find string in currently viewing item', findnext, 17, Qt.Key_F12)
+pushButton('List F1', 'Reload the list', initialize, Qt.Key_F1)
+pushButton('Find F2', 'Find the next item with the string', fil, Qt.Key_F2)
+buttonLayout.addWidget(llineEdit)
+pushButton('View F3', 'View selected item', lambda: view(crListItem()), Qt.Key_F3)
+pushButton('Tab F4', 'View in a new tab', newtab, Qt.Key_F4)
+pushButton('Refresh F5', 'Regenerate currently viewing item', refresh, Qt.Key_F5)
+pushButton('Convert F6', 'Generate selected item to HTML', regenerate, Qt.Key_F6)
+pushButton('CA C+F6', 'Generate all items to HTML', lambda:alldo(generate, filedict.values()), Qt.CTRL + Qt.Key_F6)
+pushButton('Edit F7', 'Edit selected item', lambda: edit(filedict[crListItem()]), Qt.Key_F7)
+pushButton('ET F8', 'Edit item in current tab', editview, Qt.Key_F8)
+pushButton('FTP F9', 'Upload selected item to FTP/WebDAV', lambda: ftp(filedict[crListItem()]), Qt.Key_F9)
+pushButton('FA C+F9', 'Pack all items with password and upload to FTP/WebDAV', ftpall, Qt.CTRL + Qt.Key_F9)
+pushButton('SNote F10', 'Backup selected item to SimpleNote', lambda:snote(crListItem()), Qt.Key_F10)
+pushButton('Pack F11', 'Pack all items with password', zipall, Qt.Key_F11)
+pushButton('Restore C+F11', 'Restore selected item from the latest pack', lambda:unzip(filedict[crListItem()]), Qt.CTRL + Qt.Key_F11)
+pushButton('Dropbox A+F11', 'Upload selected item to Dropbox', dropbox, Qt.ALT + Qt.Key_F11)
+buttonLayout.addWidget(blineEdit)
+pushButton('Find Next F12', 'Find string in currently viewing item', findnext, Qt.Key_F12)
 rightHalf.addWidget(tabWidget)
 rightHalf.addLayout(buttonLayout)
 fullLayout.addWidget(listWidget)
