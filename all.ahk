@@ -1,7 +1,8 @@
-﻿;EE 自動保存
+﻿;EE 自動保存，不保存 EE 新建的「无标题」文件
+SetTitleMatchMode RegEx
 loop{
 	MyLable:
-	Sleep, 1000
+	Sleep, 10000
 	GetKeyState, state, Shift
 	GetKeyState, statea, Alt
 	GetKeyState, statec, Ctrl
@@ -11,9 +12,9 @@ loop{
 		{
 			if state != D
 			{
-				IfWinActive, ahk_class EverEdit
+				If WinActive("^[^标]+ \* - EverEdit")
 				{
-					Send {F9}
+					Send ^s
 					Goto, MyLable
 				}
 			}
