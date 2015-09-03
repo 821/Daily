@@ -6,6 +6,12 @@ Environments for Python scripts: [Python 3.4.3 x64](https://www.python.org/ftp/p
 3. Supports CSS and JavaScript.
 4. Multiple backup choice.
 
+## DarkComfort.ini
+A theme for EverEdit with dark background color and coherence.
+
+## dragdrop.reg
+Enable drag and drop in Windows 10.
+
 ## zd.bat
 1. 爲所有子文件夾建立一個不壓縮的 zip 。
 2. 特色在於，是進每個文件夾內，全選後打包而成的。
@@ -22,3 +28,6 @@ Environments for Python scripts: [Python 3.4.3 x64](https://www.python.org/ftp/p
 ## all.ahk
 1. 修了 Shift 和 Ctrl 。
 2. EE 自動保存。
+
+## dragdrop.reg
+Windows 8 以上系統開啓拖拽功能，需要重啓。
