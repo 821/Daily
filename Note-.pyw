@@ -37,10 +37,9 @@ def initialize():
 	filedict = {'All Files': listfile, 'Style': cssjs}
 	with open(listfile, 'r', encoding='utf-8') as f:
 		for i in f.read().splitlines():
-			if i.find('    ') != -1:
-				j = i.split('    ')
-				filedict[j[0]] = os.path.normpath(j[1])
-				add2List(j[0])
+			j = i.split('    ')
+			filedict[j[0]] = os.path.normpath(j[1])
+			add2List(j[0])
 
 # viewing related
 def view(name):
@@ -88,19 +87,14 @@ ftp = lambda path: os.system(WinSCP + ' /command "open ' + server + '" "put ' + 
 def ftpall():
 	zipall()
 	ftp(lastbackup())
-def dropbox():
-	dbclient = dropbox.client.DropboxClient(oauth2)
-	with open(filedict[crListItem()], 'rb') as f:
-		response = dbclient.put_file('/' + os.path.basename(filedict[crListItem()]), f, overwrite=True)
 def snote(name):
 	sn = simplenote.Simplenote(snname, snpwd)
 	snkey = {}
 	with open(snkeylist, 'r', encoding='utf-8') as snkl:
 		if os.stat(snkeylist).st_size != 0:
 			for line in snkl.read().splitlines():
-				if line.find('    ') != -1:
-					j = line.split('    ')
-					snkey[j[0]] = j[1]
+				j = line.split('    ')
+				snkey[j[0]] = j[1]
 	with open(filedict[name], 'r', encoding='utf-8') as f:
 		note = {'content': f.read(), 'tags': name}
 		if name in snkey:
@@ -109,25 +103,31 @@ def snote(name):
 		else:
 			snret = sn.add_note(note)
 			with open(snkeylist, 'a', encoding='utf-8') as snkl:
-				snkl.write(name + '    ' + snret[0]['key']+ '\n')
+				snkl.write('\n' + name + '    ' + snret[0]['key'])
 
 # find next
 findnext = lambda: crTabWidget().focusNextChild(crTabWidget().findText(blineEdit.text()))
-def fil():
+def finds(func, arg):
 	global founditems, foundindex, findtext
 	if findtext != llineEdit.text(): # new search words
 		initialize() # clear previous highlights
-		foundindex = 0
-		founditems = listWidget.findItems(llineEdit.text(), Qt.MatchFlag(16) and Qt.MatchFlag(1)) # 1: partial search, 4:regex, 16: case insensitive
+		foundindex = 0; founditems = []; findtext = llineEdit.text()
+		founditems = func(arg)
 		alldo(lambda i: i.setBackgroundColor(QColor('blue')), founditems)
 		listWidget.setCurrentItem(founditems[0]) # select the first result
-		findtext = llineEdit.text()
 	else: # get next result of the last search
 		if foundindex == len(founditems) - 1:
 			foundindex = 0
 		else:
 			foundindex += 1
 		listWidget.setCurrentItem(founditems[foundindex])
+def byname(text):
+	return listWidget.findItems(text, Qt.MatchFlag(16) and Qt.MatchFlag(1)) # 1: partial search, 4:regex, 16: case insensitive
+def bycontent(text):
+	for index in range(listWidget.count()):
+		if open(filedict[listWidget.item(index).text()], 'r', encoding='utf-8').read().find(text) != -1:
+			founditems.append(listWidget.item(index))
+	return founditems
 
 # apply some changes to QTabWidget
 class TabWidget(QTabWidget):
@@ -158,13 +158,14 @@ tabWidget = TabWidget()
 listWidget = QListWidget()
 listWidget.setFixedWidth(150)
 llineEdit, blineEdit = QLineEdit(), QLineEdit()
-pushButton('List F1', 'Reload the list', initialize, Qt.Key_F1)
-pushButton('Find F2', 'Find the next item with the string', fil, Qt.Key_F2)
+pushButton('List C+F1', 'Reload the list', initialize, Qt.CTRL + Qt.Key_F1)
+pushButton('Find F1', 'Find the next item with the string', lambda: finds(byname, llineEdit.text()), Qt.Key_F1)
+pushButton('FIF F2', 'Find the next item with the string', lambda: finds(bycontent, llineEdit.text()), Qt.Key_F2)
 buttonLayout.addWidget(llineEdit)
 pushButton('View F3', 'View selected item', lambda: view(crListItem()), Qt.Key_F3)
 pushButton('Tab F4', 'View in a new tab', newtab, Qt.Key_F4)
-pushButton('Refresh F5', 'Regenerate currently viewing item', refresh, Qt.Key_F5)
-pushButton('Convert F6', 'Generate selected item to HTML', regenerate, Qt.Key_F6)
+pushButton('F5', 'Regenerate currently viewing item', refresh, Qt.Key_F5)
+pushButton('Conv F6', 'Generate selected item to HTML', regenerate, Qt.Key_F6)
 pushButton('CA C+F6', 'Generate all items to HTML', lambda:alldo(generate, filedict.values()), Qt.CTRL + Qt.Key_F6)
 pushButton('Edit F7', 'Edit selected item', lambda: edit(filedict[crListItem()]), Qt.Key_F7)
 pushButton('ET F8', 'Edit item in current tab', editview, Qt.Key_F8)
@@ -173,7 +174,6 @@ pushButton('FA C+F9', 'Pack all items with password and upload to FTP/WebDAV', f
 pushButton('SNote F10', 'Backup selected item to SimpleNote', lambda:snote(crListItem()), Qt.Key_F10)
 pushButton('Pack F11', 'Pack all items with password', zipall, Qt.Key_F11)
 pushButton('Restore C+F11', 'Restore selected item from the latest pack', lambda:unzip(filedict[crListItem()]), Qt.CTRL + Qt.Key_F11)
-pushButton('Dropbox A+F11', 'Upload selected item to Dropbox', dropbox, Qt.ALT + Qt.Key_F11)
 buttonLayout.addWidget(blineEdit)
 pushButton('Find Next F12', 'Find string in currently viewing item', findnext, Qt.Key_F12)
 rightHalf.addWidget(tabWidget)
