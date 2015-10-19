@@ -1,5 +1,10 @@
 Environments for Python scripts: [Python 3.4.3 x64](https://www.python.org/ftp/python/3.4.3/python-3.4.3.amd64.msi), [PyQt4 x64](http://sourceforge.net/projects/pyqt/files/PyQt4/PyQt-4.11.3/PyQt4-4.11.3-gpl-Py3.4-Qt5.3.2-x64.exe), [clipboard](https://pypi.python.org/pypi/clipboard).
 
+## div.py
+把高級 div 全部剝掉，衹剩下最底層 div 。實際上是個整理辭書的腳本。需要 Beautiful Soup 。
+輸入文件一行一個 HTML ，不需要處理的內容放在前方，需要的放後面，二者之間以 \`\`\` 隔開。
+需要 Beautiful Soup 。
+
 ## DarkComfort.ini
 A theme for EverEdit with dark background color and coherence.
 
