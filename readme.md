@@ -5,6 +5,9 @@ Environments for Python scripts: [Python 3.4.3 x64](https://www.python.org/ftp/p
 輸入文件一行一個 HTML ，不需要處理的內容放在前方，需要的放後面，二者之間以 \`\`\` 隔開。
 需要 Beautiful Soup 。
 
+## FatGuy.py
+經常要從一堆批量切邊的圖片裏找到裁切效果不正確的，所以寫了這麼個玩意。
+
 ## DarkComfort.ini
 A theme for EverEdit with dark background color and coherence.
 
